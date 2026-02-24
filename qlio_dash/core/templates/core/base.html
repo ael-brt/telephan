@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}QLIO Dashboard{% endblock %}</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'styles.css' %}">
+</head>
+<body>
+  <header>
+    <nav>
+        {% if user.is_authenticated %}
+          Bonjour {{ user.username }} |
+          <a href="{% url 'dashboard:index' %}">Dashboard</a> |
+          <form method="post" action="{% url 'logout' %}" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'login' %}?next=/" />
+            <button type="submit">Déconnexion</button>
+          </form>          
+        {% else %}
+          <a href="{% url 'login' %}?next=/">Connexion</a> |
+          <a href="{% url 'signup' %}">Créer un compte</a>
+        {% endif %}
+      </nav>      
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    <p>© SAE QLIO</p>
+  </footer>
+</body>
+</html>

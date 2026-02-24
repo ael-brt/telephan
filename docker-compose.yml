@@ -1,0 +1,49 @@
+services:
+  web:
+    build:
+      context: ./qlio_dash
+      dockerfile: Dockerfile
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      (python manage.py runserver 0.0.0.0:8000 &) &&
+      python -m dash_app.app
+      "
+    volumes:
+      - ./qlio_dash:/app
+    environment:
+      DB_NAME: ${DB_NAME:-mes4}
+      DB_USER: ${DB_USER:-example_user}
+      DB_PASSWORD: ${DB_PASSWORD:-example_password}
+      DB_HOST: ${DB_HOST:-mariadb}
+      DB_PORT: ${DB_PORT:-3306}
+    ports:
+      - "8000:8000"
+      - "8050:8050"
+    depends_on:
+      - mariadb
+
+  mariadb:
+    image: mariadb:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-example_root_password}
+      MYSQL_DATABASE: ${DB_NAME:-MES4}
+      MYSQL_USER: ${DB_USER:-example_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-example_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data:/var/lib/mysql
+
+  phpmyadmin:
+    image: arm64v8/phpmyadmin:5.2.1
+    restart: always
+    environment:
+      PMA_HOST: mariadb
+      PMA_USER: ${DB_USER:-example_user}
+      PMA_PASSWORD: ${DB_PASSWORD:-example_password}
+    ports:
+      - "8081:80"
+    depends_on:
+      - mariadb

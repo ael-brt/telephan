@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+{% block title %}Connexion{% endblock %}
+{% block content %}
+<section style="max-width: 420px; margin: 2rem auto; padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
+  <h1 style="margin-top: 0;">Connexion</h1>
+  <p style="color: #555; margin-bottom: 1rem;">Accès au dashboard TELEPHAN</p>
+
+  {% if form.errors %}
+    <div style="margin-bottom: 1rem; padding: 0.75rem; border-radius: 6px; background: #fff3f3; color: #8a1f1f; border: 1px solid #f1c0c0;">
+      Identifiants invalides. Vérifie ton nom d'utilisateur et ton mot de passe.
+    </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next|default:'/' }}" />
+    {{ form.as_p }}
+    <button type="submit">Se connecter</button>
+  </form>
+
+  <p style="margin-top: 1rem; color: #666;">
+    Pas encore de compte ? <a href="{% url 'signup' %}">Créer un compte</a>
+  </p>
+</section>
+{% endblock %}

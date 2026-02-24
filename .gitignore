@@ -42,3 +42,6 @@ visual-identical-twin-main/.vite/
 # Coverage
 .coverage
 coverage/
+
+# Local launcher runtime files
+.run/

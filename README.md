@@ -9,6 +9,33 @@ Projet full-stack pour le dashboard TELEPHAN:
 
 Le frontend consomme l'API Django et utilise l'auth Django (session + CSRF) avec une page de login frontend (`/login`).
 
+## Demarrage simplifie (client)
+
+Pour un lancement simple (macOS), utiliser le script fourni:
+
+- double-clic sur `launch_telephan.command`
+- ou en terminal:
+
+```bash
+./launch_telephan.command
+```
+
+Le script:
+
+- demarre `mariadb` + `phpMyAdmin` (Docker)
+- prepare le backend Python (`.venv`) si besoin
+- prepare le frontend (`node_modules`) si besoin
+- lance Django + Vite
+- ouvre automatiquement le dashboard dans le navigateur
+
+Arret:
+
+```bash
+./stop_telephan.command
+```
+
+Note: le premier lancement peut prendre plusieurs minutes (installation des dependances).
+
 ## Prerequis
 
 - Docker Desktop + `docker compose`
@@ -145,4 +172,3 @@ Le repo n'a pas besoin de contenir:
 - `data/` (volume MariaDB Docker)
 - dumps SQL volumineux (`FestoMES-*.sql`)
 - documents de rendu / exports locaux
-

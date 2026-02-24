@@ -44,20 +44,6 @@ Pour l'instant, utiliser le compte admin de demo:
 
 Connexion via `http://127.0.0.1:8080`.
 
-## Donnees (pour voir les vraies courbes)
-
-Le projet peut s'afficher sans donnees reelles, mais pour avoir les vraies courbes il faut:
-
-1. Importer un dump MES dans `mes4` (ex: `FestoMES-2025-12-02.sql`)
-2. Importer `telephan.sql` (cree `mes_kpi`)
-3. Lancer l'ETL `mes4 -> mes_kpi`
-
-Commandes (si besoin):
-
-```bash
-docker compose exec -T mariadb sh -c 'mariadb -u"$MYSQL_USER" -p"$MYSQL_PASSWORD"' < telephan.sql
-docker compose exec -T mariadb sh -c 'mariadb -u"$MYSQL_USER" -p"$MYSQL_PASSWORD"' < qlio_dash/dashboard/sql/populate_mes_kpi_from_mes4.sql
-```
 
 ## Installation manuelle (si tu ne veux pas utiliser le script)
 

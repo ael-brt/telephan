@@ -11,7 +11,9 @@ Le frontend consomme l'API Django et utilise l'auth Django (session + CSRF) avec
 
 ## Demarrage simplifie (client)
 
-Pour un lancement simple (macOS), utiliser le script fourni:
+Pour un lancement simple (macOS), utiliser le script fourni.
+
+Important: il faut quand meme installer les prerequis systeme ci-dessous avant le premier lancement.
 
 - double-clic sur `launch_telephan.command`
 - ou en terminal:
@@ -34,13 +36,82 @@ Arret:
 ./stop_telephan.command
 ```
 
-Note: le premier lancement peut prendre plusieurs minutes (installation des dependances).
+Note: le premier lancement peut prendre plusieurs minutes (installation des dependances Python + Node).
 
 ## Prerequis
 
-- Docker Desktop + `docker compose`
-- Python 3.12+ (teste avec 3.13)
-- Node.js 18+ et npm
+### Prerequis obligatoires (tous)
+
+- OS: macOS (scripts `.command` fournis). Linux possible en suivant les commandes manuelles du README.
+- Docker Desktop installe et demarre (obligatoire pour MariaDB + phpMyAdmin)
+- Docker Compose v2 (`docker compose`)
+- Python `3.12+` (teste avec `3.13`)
+- `python3-venv` / module `venv` disponible
+- Node.js `18+` (recommande `20 LTS`) + `npm`
+- Connexion internet au premier lancement (telechargement `pip` + `npm`)
+- Navigateur web recent (Chrome / Edge / Firefox)
+
+### Prerequis systeme Python (backend `mysqlclient`)
+
+Le backend installe `mysqlclient`, qui necessite des dependances systeme.
+
+#### macOS (recommande pour eviter les erreurs de build)
+
+- Xcode Command Line Tools:
+
+```bash
+xcode-select --install
+```
+
+- Homebrew installe
+- paquets Homebrew:
+
+```bash
+brew install pkg-config mysql-client
+```
+
+Si `mysqlclient` echoue quand meme a l'installation, ouvrir un nouveau terminal puis relancer `./launch_telephan.command`.
+
+### Ressources machine recommandees
+
+- RAM: `8 Go` minimum (Docker + Node + Python)
+- Espace disque libre: `5 Go+` (images Docker, `node_modules`, venv)
+
+### Ports utilises (doivent etre libres)
+
+- `3306` : MariaDB (Docker)
+- `8081` : phpMyAdmin
+- `8000` : backend Django
+- `8080` : frontend Vite
+
+Si un port est deja pris, l'application peut ne pas demarrer correctement.
+
+### Donnees / base de donnees (pour les vraies courbes)
+
+- dump MES brut (ex: `FestoMES-2025-12-02.sql`) disponible localement
+- `telephan.sql` (versionne dans ce repo) pour creer `mes_kpi`
+- ETL `qlio_dash/dashboard/sql/populate_mes_kpi_from_mes4.sql` (versionne)
+
+Sans dump MES, l'interface peut s'afficher mais certaines donnees seront vides ou en fallback.
+
+### Compte utilisateur (connexion dashboard)
+
+- Un compte Django est necessaire pour se connecter au dashboard.
+- Creer au moins un utilisateur avec:
+
+```bash
+cd qlio_dash
+python manage.py createsuperuser
+```
+
+### Verification rapide des prerequis (optionnel)
+
+```bash
+docker --version
+docker compose version
+python3 --version
+npm --version
+```
 
 ## 1. Cloner et preparer l'environnement
 

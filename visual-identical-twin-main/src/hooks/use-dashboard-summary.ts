@@ -9,7 +9,7 @@ export function useDashboardSummary() {
   return useQuery({
     queryKey: ["dashboard-summary", filters],
     queryFn: () => fetchDashboardSummary(filters),
-    refetchInterval: 15000,
-    staleTime: 10000,
+    refetchInterval: 120000,
+    staleTime: 60000,
   });
 }

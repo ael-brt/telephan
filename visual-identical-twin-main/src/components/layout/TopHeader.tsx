@@ -1,12 +1,19 @@
-import { LogOut, Bell } from "lucide-react";
+import { LogOut, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
+import { useDashboardSummary } from "@/hooks/use-dashboard-summary";
+import { cn } from "@/lib/utils";
 
 interface TopHeaderProps {
   onLogout: () => void;
 }
 
 export const TopHeader = ({ onLogout }: TopHeaderProps) => {
+  const { data, isFetching, refetch } = useDashboardSummary();
+  const lastUpdate = data?.generated_at
+    ? new Date(data.generated_at).toLocaleTimeString("fr-FR")
+    : "--";
+
   return (
     <header className="h-14 bg-primary text-primary-foreground px-6 flex items-center justify-between border-b border-primary/20">
       {/* Logo & Navigation */}
@@ -23,15 +30,18 @@ export const TopHeader = ({ onLogout }: TopHeaderProps) => {
       {/* Actions */}
       <div className="flex items-center gap-3">
         <span className="text-sm text-primary-foreground/70 hidden sm:block">
-          Dernière mise à jour : Il y a 5 min
+          Dernière mise à jour : {lastUpdate}
         </span>
         
         <Button 
-          variant="ghost" 
-          size="icon"
-          className="text-primary-foreground hover:bg-primary-foreground/10"
+          variant="outline" 
+          size="sm"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+          className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground gap-2"
         >
-          <Bell className="w-5 h-5" />
+          <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
+          <span className="hidden sm:inline">Rafraîchir</span>
         </Button>
         
         <Button 

@@ -9,11 +9,11 @@ export function kpiStatus(kpi?: DashboardKpi | null): KpiStatus {
   return "danger";
 }
 
-export function kpiValue(kpi?: DashboardKpi | null, fallback = 0): number {
+export function kpiValue(kpi?: DashboardKpi | null, fallback: number | null = null): number | null {
   return typeof kpi?.value === "number" ? kpi.value : fallback;
 }
 
-export function kpiTarget(kpi?: DashboardKpi | null, fallback = 0): number {
+export function kpiTarget(kpi?: DashboardKpi | null, fallback: number | null = null): number | null {
   return typeof kpi?.target === "number" ? kpi.target : fallback;
 }
 

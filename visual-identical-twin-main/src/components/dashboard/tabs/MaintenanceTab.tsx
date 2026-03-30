@@ -2,46 +2,28 @@ import { Wrench, AlertTriangle, Clock, TrendingDown } from "lucide-react";
 import { GaugeChart } from "../GaugeChart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, ReferenceLine } from "recharts";
 import { useDashboardSummary } from "@/hooks/use-dashboard-summary";
-import { compareToTargetText, formatKpiValue, formatMinutesAsHuman, kpiValue } from "@/lib/kpi-format";
-
-// Données pour les graphiques
-const errorEvolution = [
-  { day: "Lun", critiques: 1, total: 5 },
-  { day: "Mar", critiques: 2, total: 8 },
-  { day: "Mer", critiques: 1, total: 6 },
-  { day: "Jeu", critiques: 0, total: 4 },
-  { day: "Ven", critiques: 1, total: 5 },
-  { day: "Sam", critiques: 0, total: 3 },
-  { day: "Dim", critiques: 0, total: 2 },
-];
-
-const stopTimeEvolution = [
-  { day: "Lun", minutes: 45 },
-  { day: "Mar", minutes: 68 },
-  { day: "Mer", minutes: 52 },
-  { day: "Jeu", minutes: 35 },
-  { day: "Ven", minutes: 42 },
-  { day: "Sam", minutes: 28 },
-  { day: "Dim", minutes: 18 },
-];
+import { compareToTargetText, formatKpiValue, formatMinutesAsHuman } from "@/lib/kpi-format";
 
 export const MaintenanceTab = () => {
   const { data } = useDashboardSummary();
   const criticalErrorKpi = data?.sections.maintenance.critical_error_count;
   const totalErrorKpi = data?.sections.maintenance.error_count;
 
-  const criticalErrors = Math.round(kpiValue(criticalErrorKpi));
-  const totalMachineErrors = Math.max(Math.round(kpiValue(totalErrorKpi)), 1);
-  const errorEvolutionData =
-    data?.details.maintenance.error_evolution?.length ? data.details.maintenance.error_evolution : errorEvolution;
-  const stopTimeEvolutionData =
-    data?.details.maintenance.stop_time_evolution?.length ? data.details.maintenance.stop_time_evolution : stopTimeEvolution;
+  const criticalErrors = criticalErrorKpi?.value != null ? Math.round(criticalErrorKpi.value) : null;
+  const totalMachineErrors = totalErrorKpi?.value != null ? Math.round(totalErrorKpi.value) : null;
+  const errorEvolutionData = data?.details.maintenance.error_evolution ?? [];
+  const stopTimeEvolutionData = data?.details.maintenance.stop_time_evolution ?? [];
   const hasRealStopTime = data?.details.maintenance.total_stop_time_minutes != null;
-  const totalStopTimeMinutes = data?.details.maintenance.total_stop_time_minutes ?? 135; // fallback demo until backend computes it
+  const totalStopTimeMinutes = data?.details.maintenance.total_stop_time_minutes ?? null;
   const stopTimeObjective = 210; // 30min * 7 jours
 
   // Pourcentage inversé (moins = mieux)
-  const stopTimePercentage = Math.min((1 - totalStopTimeMinutes / stopTimeObjective) * 100 + 50, 100);
+  const stopTimePercentage =
+    totalStopTimeMinutes != null ? Math.min((1 - totalStopTimeMinutes / stopTimeObjective) * 100 + 50, 100) : 0;
+  const errorRatioPct =
+    criticalErrors != null && totalMachineErrors != null && totalMachineErrors > 0
+      ? (criticalErrors / totalMachineErrors) * 100
+      : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -74,7 +56,7 @@ export const MaintenanceTab = () => {
           <p className="text-sm text-muted-foreground mt-1">Nombre total d'erreurs machines</p>
           <div className="mt-3">
             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-warning rounded-full transition-all" style={{ width: `${(criticalErrors / totalMachineErrors) * 100}%` }} />
+              <div className="h-full bg-warning rounded-full transition-all" style={{ width: `${errorRatioPct}%` }} />
             </div>
             <p className="text-xs text-muted-foreground mt-1">{compareToTargetText(totalErrorKpi)}</p>
           </div>
@@ -100,24 +82,28 @@ export const MaintenanceTab = () => {
         {/* Évolution des erreurs */}
         <div className="bg-card rounded-xl border p-5">
           <h3 className="text-sm font-medium mb-4">Évolution des erreurs</h3>
-          <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={errorEvolutionData}>
-                <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px'
-                  }} 
-                />
-                <Bar dataKey="total" fill="hsl(var(--muted-foreground))" name="Total" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="critiques" fill="hsl(var(--destructive))" name="Critiques" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {errorEvolutionData.length > 0 ? (
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={errorEvolutionData}>
+                  <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Bar dataKey="total" fill="hsl(var(--muted-foreground))" name="Total" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="critiques" fill="hsl(var(--destructive))" name="Critiques" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-44 flex items-center justify-center text-xs text-muted-foreground">Aucune donnée disponible</div>
+          )}
           <div className="flex items-center justify-center gap-6 mt-2 text-xs">
             <span className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-muted-foreground" />
@@ -133,38 +119,42 @@ export const MaintenanceTab = () => {
         {/* Temps d'arrêt - Jauge + Évolution */}
         <div className="bg-card rounded-xl border p-5">
           <h3 className="text-sm font-medium mb-4">Temps d'arrêt</h3>
-          <div className="flex items-center gap-6">
-            <GaugeChart 
-              value={stopTimePercentage} 
-              size={140}
-              thresholds={{ warning: 60, danger: 40 }}
-            />
-            <div className="flex-1 h-32">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={stopTimeEvolutionData}>
-                  <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis hide domain={[0, 80]} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }} 
-                  />
-                  <ReferenceLine y={30} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
-                  <Line 
-                    type="monotone" 
-                    dataKey="minutes" 
-                    stroke="hsl(var(--kpi-maintenance))" 
-                    strokeWidth={2}
-                    dot={{ fill: "hsl(var(--kpi-maintenance))", r: 3 }}
-                    name="Minutes"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+          {hasRealStopTime && stopTimeEvolutionData.length > 0 ? (
+            <div className="flex items-center gap-6">
+              <GaugeChart
+                value={stopTimePercentage}
+                size={140}
+                thresholds={{ warning: 60, danger: 40 }}
+              />
+              <div className="flex-1 h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={stopTimeEvolutionData}>
+                    <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis hide domain={[0, 80]} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                    />
+                    <ReferenceLine y={30} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+                    <Line
+                      type="monotone"
+                      dataKey="minutes"
+                      stroke="hsl(var(--kpi-maintenance))"
+                      strokeWidth={2}
+                      dot={{ fill: "hsl(var(--kpi-maintenance))", r: 3 }}
+                      name="Minutes"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">Aucune donnée disponible</div>
+          )}
           <p className="text-xs text-muted-foreground text-center mt-2">Objectif: 30 min/jour max</p>
         </div>
       </div>

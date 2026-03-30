@@ -3,12 +3,18 @@ import App from "./App.tsx";
 import "./index.css";
 
 function forceTelephanFavicon() {
-  const href = "/telephan-tab-icon.svg?v=3";
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+      <rect x="2" y="2" width="44" height="44" rx="12" fill="#1874d1" />
+      <path d="M14 16C14 14.8954 14.8954 14 16 14H32C33.1046 14 34 14.8954 34 16V18C34 19.1046 33.1046 20 32 20H27V34C27 35.1046 26.1046 36 25 36H23C21.8954 36 21 35.1046 21 34V20H16C14.8954 20 14 19.1046 14 18V16Z" fill="#fff" />
+    </svg>
+  `;
+  const href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
   const head = document.head;
   if (!head) return;
 
   head
-    .querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="alternate icon"]')
+    .querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="alternate icon"], link[rel="apple-touch-icon"]')
     .forEach((node) => node.parentNode?.removeChild(node));
 
   const icon = document.createElement("link");
@@ -22,6 +28,11 @@ function forceTelephanFavicon() {
   shortcut.type = "image/svg+xml";
   shortcut.href = href;
   head.appendChild(shortcut);
+
+  const apple = document.createElement("link");
+  apple.rel = "apple-touch-icon";
+  apple.href = href;
+  head.appendChild(apple);
 }
 
 forceTelephanFavicon();

@@ -2,26 +2,7 @@ import { Package, TrendingUp, Warehouse, Settings } from "lucide-react";
 import { GaugeChart } from "../GaugeChart";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, BarChart, Bar } from "recharts";
 import { useDashboardSummary } from "@/hooks/use-dashboard-summary";
-import { compareToTargetText, formatKpiValue, kpiValue } from "@/lib/kpi-format";
-
-// Données pour les graphiques
-const stockEvolution = [
-  { date: "Lun", value: 82 },
-  { date: "Mar", value: 85 },
-  { date: "Mer", value: 87 },
-  { date: "Jeu", value: 84 },
-  { date: "Ven", value: 89 },
-  { date: "Sam", value: 87 },
-  { date: "Dim", value: 87 },
-];
-
-const zoneOccupancy = [
-  { zone: "Zone A", stockage: 92, encours: 45 },
-  { zone: "Zone B", stockage: 78, encours: 65 },
-  { zone: "Zone C", stockage: 65, encours: 56 },
-  { zone: "Zone D", stockage: 56, encours: 72 },
-  { zone: "Zone E", stockage: 45, encours: 38 },
-];
+import { compareToTargetText, formatKpiValue } from "@/lib/kpi-format";
 
 export const StockTab = () => {
   const { data } = useDashboardSummary();
@@ -29,13 +10,11 @@ export const StockTab = () => {
   const storageOccupancyKpi = data?.sections.stock.storage_occupation_rate;
   const wipOccupancyKpi = data?.sections.stock.wip_occupation_rate;
 
-  const stockLevel = kpiValue(averageStockLevel);
-  const storageOccupancy = kpiValue(storageOccupancyKpi);
-  const encoursOccupancy = kpiValue(wipOccupancyKpi);
-  const stockEvolutionData =
-    data?.details.stock.stock_evolution?.length ? data.details.stock.stock_evolution : stockEvolution;
-  const zoneOccupancyData =
-    data?.details.stock.zone_occupancy?.length ? data.details.stock.zone_occupancy : zoneOccupancy;
+  const stockLevel = averageStockLevel?.value ?? null;
+  const storageOccupancy = storageOccupancyKpi?.value ?? 0;
+  const encoursOccupancy = wipOccupancyKpi?.value ?? 0;
+  const stockEvolutionData = data?.details.stock.stock_evolution ?? [];
+  const zoneOccupancyData = data?.details.stock.zone_occupancy ?? [];
 
   return (
     <div className="p-6 space-y-6">
@@ -93,60 +72,68 @@ export const StockTab = () => {
         {/* Jauge niveau de stock + évolution */}
         <div className="bg-card rounded-xl border p-5">
           <h3 className="text-sm font-medium mb-4">Niveau de stock</h3>
-          <div className="flex items-center gap-6">
-            <GaugeChart 
-              value={Math.min(stockLevel, 100)} 
-              size={140}
-              thresholds={{ warning: 70, danger: 50 }}
-            />
-            <div className="flex-1 h-32">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stockEvolutionData}>
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis hide domain={[70, 100]} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }} 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="hsl(var(--kpi-stock))"
-                    fill="hsl(var(--kpi-stock) / 0.2)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+          {stockLevel != null && stockEvolutionData.length > 0 ? (
+            <div className="flex items-center gap-6">
+              <GaugeChart
+                value={Math.min(stockLevel, 100)}
+                size={140}
+                thresholds={{ warning: 70, danger: 50 }}
+              />
+              <div className="flex-1 h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={stockEvolutionData}>
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis hide domain={[70, 100]} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="hsl(var(--kpi-stock))"
+                      fill="hsl(var(--kpi-stock) / 0.2)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">Aucune donnée disponible</div>
+          )}
           <p className="text-xs text-muted-foreground text-center mt-2">Évolution hebdomadaire</p>
         </div>
 
         {/* Occupation par zone */}
         <div className="bg-card rounded-xl border p-5">
           <h3 className="text-sm font-medium mb-4">Occupation par zone</h3>
-          <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={zoneOccupancyData} layout="vertical">
-                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="zone" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={60} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px'
-                  }} 
-                />
-                <Bar dataKey="stockage" fill="hsl(var(--kpi-stock))" name="Stockage" radius={[0, 4, 4, 0]} />
-                <Bar dataKey="encours" fill="hsl(var(--chart-3))" name="Encours" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {zoneOccupancyData.length > 0 ? (
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={zoneOccupancyData} layout="vertical">
+                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="zone" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={60} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Bar dataKey="stockage" fill="hsl(var(--kpi-stock))" name="Stockage" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="encours" fill="hsl(var(--chart-3))" name="Encours" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-44 flex items-center justify-center text-xs text-muted-foreground">Aucune donnée disponible</div>
+          )}
           <div className="flex items-center justify-center gap-6 mt-2 text-xs">
             <span className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-kpi-stock" />

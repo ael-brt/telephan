@@ -2,35 +2,17 @@ import { Truck, TrendingDown, CheckCircle } from "lucide-react";
 import { GaugeChart } from "../GaugeChart";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, BarChart, Bar, Tooltip, ReferenceLine } from "recharts";
 import { useDashboardSummary } from "@/hooks/use-dashboard-summary";
-import { compareToTargetText, formatKpiValue, kpiTarget, kpiValue } from "@/lib/kpi-format";
-
-// Données pour les graphiques
-const otdEvolution = [
-  { day: "Lun", value: 94.5 },
-  { day: "Mar", value: 89.2 },
-  { day: "Mer", value: 91.8 },
-  { day: "Jeu", value: 88.5 },
-  { day: "Ven", value: 93.1 },
-  { day: "Sam", value: 95.2 },
-  { day: "Dim", value: 92.1 },
-];
-
-const leadTimeByProduct = [
-  { product: "PH-203N", leadTime: 3.8 },
-  { product: "PH-104N", leadTime: 4.2 },
-  { product: "PH-402T", leadTime: 5.1 },
-  { product: "PH-301S", leadTime: 3.5 },
-];
+import { compareToTargetText, formatKpiValue } from "@/lib/kpi-format";
 
 export const DelayTab = () => {
   const { data } = useDashboardSummary();
   const leadTime = data?.sections.delay.global_lead_time;
   const otd = data?.sections.delay.otd;
-  const otdRate = kpiValue(otd);
-  const otdTarget = kpiTarget(otd, 95);
-  const otdEvolutionData = data?.details.delay.otd_evolution?.length ? data.details.delay.otd_evolution : otdEvolution;
-  const leadTimeByOrderData =
-    data?.details.delay.lead_time_by_product?.length ? data.details.delay.lead_time_by_product : leadTimeByProduct;
+  const otdRate = otd?.value ?? 0;
+  const otdTarget = otd?.target ?? null;
+  const leadTimeTarget = leadTime?.target ?? null;
+  const otdEvolutionData = data?.details.delay.otd_evolution ?? [];
+  const leadTimeByOrderData = data?.details.delay.lead_time_by_product ?? [];
 
   return (
     <div className="p-6 space-y-6">
@@ -62,7 +44,7 @@ export const DelayTab = () => {
             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
               <div className="h-full bg-warning rounded-full transition-all" style={{ width: `${otdRate}%` }} />
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Objectif: {otdTarget}%</p>
+            <p className="text-xs text-muted-foreground mt-1">Objectif: {otdTarget != null ? `${otdTarget}%` : "--"}</p>
           </div>
         </div>
       </div>
@@ -72,66 +54,74 @@ export const DelayTab = () => {
         {/* OTD Jauge + Évolution */}
         <div className="bg-card rounded-xl border p-5">
           <h3 className="text-sm font-medium mb-4">OTD - On Time Delivery</h3>
-          <div className="flex items-center gap-6">
-            <GaugeChart 
-              value={otdRate} 
-              size={140}
-              thresholds={{ warning: 90, danger: 80 }}
-            />
-            <div className="flex-1 h-32">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={otdEvolutionData}>
-                  <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis hide domain={[80, 100]} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }} 
-                  />
-                  <ReferenceLine y={otdTarget} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="hsl(var(--kpi-delay))" 
-                    strokeWidth={2}
-                    dot={{ fill: "hsl(var(--kpi-delay))", r: 3 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+          {otd?.value != null && otdEvolutionData.length > 0 ? (
+            <div className="flex items-center gap-6">
+              <GaugeChart
+                value={otdRate}
+                size={140}
+                thresholds={{ warning: 90, danger: 80 }}
+              />
+              <div className="flex-1 h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={otdEvolutionData}>
+                    <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis hide domain={[80, 100]} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                    />
+                    {otdTarget != null && <ReferenceLine y={otdTarget} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />}
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="hsl(var(--kpi-delay))"
+                      strokeWidth={2}
+                      dot={{ fill: "hsl(var(--kpi-delay))", r: 3 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">Aucune donnée disponible</div>
+          )}
           <p className="text-xs text-muted-foreground text-center mt-2">Évolution hebdomadaire</p>
         </div>
 
         {/* Lead Time par produit */}
         <div className="bg-card rounded-xl border p-5">
           <h3 className="text-sm font-medium mb-4">Lead Time par ordre</h3>
-          <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={leadTimeByOrderData}>
-                <XAxis dataKey="product" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px'
-                  }} 
-                />
-                <ReferenceLine y={4.5} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
-                <Bar 
-                  dataKey="leadTime" 
-                  fill="hsl(var(--kpi-delay))" 
-                  radius={[4, 4, 0, 0]}
-                  name="Lead Time"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {leadTimeByOrderData.length > 0 ? (
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={leadTimeByOrderData}>
+                  <XAxis dataKey="product" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                  />
+                  {leadTimeTarget != null && <ReferenceLine y={leadTimeTarget} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />}
+                  <Bar
+                    dataKey="leadTime"
+                    fill="hsl(var(--kpi-delay))"
+                    radius={[4, 4, 0, 0]}
+                    name="Lead Time"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-44 flex items-center justify-center text-xs text-muted-foreground">Aucune donnée disponible</div>
+          )}
           <div className="flex items-center justify-center gap-6 mt-2 text-xs">
             <span className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-kpi-delay" />

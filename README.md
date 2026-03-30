@@ -14,6 +14,13 @@ Le plus simple:
 2. Ouvrir Docker Desktop (le laisser demarre)
 3. Double-cliquer sur `launch_telephan.command`
 
+Autre possibilite (terminal):
+
+```bash
+cd /chemin/vers/SAEQLIO
+bash launch_telephan.command
+```
+
 Le script lance:
 - MariaDB + phpMyAdmin
 - le backend Django
@@ -76,9 +83,9 @@ docker compose up -d mariadb phpmyadmin
 
 Il faut juste:
 
-- Docker Desktop
-- Python 3 (3.12+)
-- Node.js + npm
+- Docker Desktop: https://www.docker.com/products/docker-desktop/
+- Python 3 (3.12+): https://www.python.org/downloads/
+- Node.js + npm: https://nodejs.org/
 - Internet au premier lancement (installation des dependances)
 
 ## Si ca bloque (rapide)

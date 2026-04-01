@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
@@ -463,6 +463,76 @@ def _json_safe(value):
     return value
 
 
+def _apply_energy_csv_fallback_mes_raw(
+    results: dict[str, dict],
+    details: dict,
+    detail_data: dict[str, pd.DataFrame],
+    filters: dict[str, str],
+) -> None:
+    if warehouse_metrics is None:
+        return
+    if not hasattr(warehouse_metrics, "_energy_from_csv"):
+        return
+
+    try:
+        if hasattr(warehouse_metrics, "_energy_missing"):
+            if not warehouse_metrics._energy_missing(results, details):
+                return
+
+        produced_count = 0.0
+        parts = detail_data.get("parts_report", pd.DataFrame())
+        if not parts.empty:
+            produced_count = float(len(parts.index))
+
+        if produced_count <= 0:
+            finstep = detail_data.get("finstep", pd.DataFrame())
+            if not finstep.empty:
+                produced_count = float(len(finstep.index))
+
+        since = date.today() - timedelta(days=6)
+        until = date.today()
+        if not parts.empty and "TimeStamp" in parts.columns:
+            ts = pd.to_datetime(parts["TimeStamp"], errors="coerce").dropna()
+            if not ts.empty:
+                since = ts.dt.date.min()
+                until = ts.dt.date.max()
+
+        csv_energy = warehouse_metrics._energy_from_csv(
+            produced_count=produced_count,
+            since=since,
+            until=until,
+            points=7,
+        )
+        if not csv_energy:
+            return
+
+        for key, csv_value in (
+            ("energy_per_unit", csv_energy.get("energy_per_unit")),
+            ("air_per_unit", csv_energy.get("air_per_unit")),
+        ):
+            item = dict(results.get(key) or {})
+            target = item.get("target")
+            better_when = item.get("better_when", "lower")
+            value = None if csv_value is None else float(csv_value)
+            ratio = None
+            if value is not None and target not in (None, 0):
+                if better_when == "lower":
+                    ratio = (target / value) if value else 0
+                else:
+                    ratio = value / target
+            item["value"] = value
+            item["ratio"] = ratio
+            if kpis is not None:
+                item["color"] = kpis.compute_color(value, target, better_when)
+            results[key] = item
+
+        details.setdefault("energy", {})
+        details["energy"]["energy_evolution"] = csv_energy.get("energy_evolution", [])
+        details["energy"]["combined"] = csv_energy.get("combined", [])
+    except Exception:
+        logger.exception("Unable to apply CSV energy fallback on mes_raw payload")
+
+
 @require_GET
 def summary_api(request):
     try:
@@ -539,14 +609,16 @@ def summary_api(request):
             "resources": data_access.fetch_resources(),
         }
         results = kpis.compute_all_kpis(data)
+        details = _build_details(detail_data)
         aliased_results = _alias_kpis(results)
+        _apply_energy_csv_fallback_mes_raw(aliased_results, details, detail_data, request_filters)
         return JsonResponse(
             {
                 "generated_at": datetime.now(timezone.utc).isoformat(),
                 "window_minutes": int(dash_config.SHIFT_WINDOW.total_seconds() // 60),
                 "kpis": _json_safe(aliased_results),
                 "sections": _json_safe(_build_sections(aliased_results)),
-                "details": _json_safe(_build_details(detail_data)),
+                "details": _json_safe(details),
                 "filter_options": {},
                 "data_source": "mes_raw",
             }

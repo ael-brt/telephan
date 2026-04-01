@@ -6,6 +6,15 @@ Projet de dashboard industriel (frontend + backend) realise dans le cadre de la 
 - `qlio_dash/` : backend Django + API + login
 - `telephan.sql` : schema de la base KPI (`mes_kpi`)
 
+## Prerequis (simple)
+
+Il faut juste:
+
+- Docker Desktop: https://www.docker.com/products/docker-desktop/
+- Python 3 (3.12+): https://www.python.org/downloads/
+- Node.js + npm: https://nodejs.org/
+- Internet au premier lancement (installation des dependances)
+
 ## Lancement rapide (macOS)
 
 Le plus simple:
@@ -78,15 +87,6 @@ npm run dev
 ```bash
 docker compose up -d mariadb phpmyadmin
 ```
-
-## Prerequis (simple)
-
-Il faut juste:
-
-- Docker Desktop: https://www.docker.com/products/docker-desktop/
-- Python 3 (3.12+): https://www.python.org/downloads/
-- Node.js + npm: https://nodejs.org/
-- Internet au premier lancement (installation des dependances)
 
 ## Si ca bloque (rapide)
 

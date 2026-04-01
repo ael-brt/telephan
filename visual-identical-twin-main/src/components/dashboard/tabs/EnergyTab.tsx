@@ -11,6 +11,27 @@ export const EnergyTab = () => {
 
   const energyPerPiece = energyKpi?.value ?? null;
   const energyObjective = energyKpi?.target ?? null;
+  const energyDecimals =
+    energyPerPiece == null
+      ? 2
+      : Math.abs(energyPerPiece) < 0.001
+        ? 6
+        : Math.abs(energyPerPiece) < 0.01
+          ? 5
+          : Math.abs(energyPerPiece) < 1
+            ? 3
+            : 2;
+  const airPerPiece = airKpi?.value ?? null;
+  const airDecimals =
+    airPerPiece == null
+      ? 2
+      : Math.abs(airPerPiece) < 0.001
+        ? 6
+        : Math.abs(airPerPiece) < 0.01
+          ? 5
+          : Math.abs(airPerPiece) < 1
+            ? 3
+            : 2;
 
   const energyPercentage =
     energyPerPiece != null && energyObjective != null && energyPerPiece > 0
@@ -29,7 +50,7 @@ export const EnergyTab = () => {
             <Zap className="w-5 h-5 text-kpi-energy" />
             <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">KPI Clé</span>
           </div>
-          <p className="text-4xl font-bold text-warning">{formatKpiValue(energyKpi)}</p>
+          <p className="text-4xl font-bold text-warning">{formatKpiValue(energyKpi, { decimals: energyDecimals })}</p>
           <p className="text-sm text-muted-foreground mt-1">Consommation énergétique / pièce</p>
           <div className="flex items-center gap-1 mt-3 text-xs text-destructive">
             <TrendingUp className="w-3 h-3" />
@@ -43,7 +64,7 @@ export const EnergyTab = () => {
             <Wind className="w-5 h-5 text-primary" />
             <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Air comprimé</span>
           </div>
-          <p className="text-4xl font-bold text-warning">{formatKpiValue(airKpi)}</p>
+          <p className="text-4xl font-bold text-warning">{formatKpiValue(airKpi, { decimals: airDecimals })}</p>
           <p className="text-sm text-muted-foreground mt-1">Air comprimé moyen / pièce</p>
           <div className="flex items-center gap-1 mt-3 text-xs text-destructive">
             <TrendingUp className="w-3 h-3" />
@@ -68,7 +89,7 @@ export const EnergyTab = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={energyEvolutionData}>
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis hide domain={[1, 1.5]} />
+                    <YAxis hide />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
@@ -104,8 +125,8 @@ export const EnergyTab = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={combinedEnergyData}>
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 10 }} domain={[1, 1.5]} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} domain={[2, 3.5]} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import os
+from io import StringIO
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 
 from dash_app import config as dash_config
 from dash_app import data_access, kpis
+
+
+_ENERGY_CSV_CACHE: dict[str, object] = {"path": None, "mtime": None, "data": None}
 
 
 def _sql_schema() -> str:
@@ -190,6 +196,210 @@ def _num(df: pd.DataFrame, col: str) -> pd.Series:
     return pd.to_numeric(df[col], errors="coerce").fillna(0)
 
 
+def _energy_csv_file() -> Optional[Path]:
+    candidates: list[Path] = []
+    env_path = os.environ.get("ENERGY_CSV_PATH")
+    if env_path:
+        candidates.append(Path(env_path))
+
+    root = Path(__file__).resolve().parents[2]
+    candidates.extend(
+        [
+            root / "dataEnergy.csv",
+            root / "data" / "dataEnergy.csv",
+        ]
+    )
+
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _load_energy_csv() -> pd.DataFrame:
+    csv_path = _energy_csv_file()
+    if csv_path is None:
+        return pd.DataFrame()
+
+    mtime = csv_path.stat().st_mtime
+    if (
+        _ENERGY_CSV_CACHE["path"] == str(csv_path)
+        and _ENERGY_CSV_CACHE["mtime"] == mtime
+        and isinstance(_ENERGY_CSV_CACHE["data"], pd.DataFrame)
+    ):
+        return _ENERGY_CSV_CACHE["data"]  # type: ignore[return-value]
+
+    raw_text = csv_path.read_text(encoding="utf-8", errors="ignore").replace("\x00", "")
+    frame = pd.read_csv(StringIO(raw_text), sep=";", engine="python")
+    frame.columns = [str(c).strip() for c in frame.columns]
+    frame = frame[[c for c in frame.columns if not c.startswith("Unnamed")]]
+    if frame.empty:
+        return pd.DataFrame()
+
+    lookup = {c.lower(): c for c in frame.columns}
+    time_col = next((c for c in frame.columns if c.lower().startswith("time")), None)
+    flow_col = next((c for c in frame.columns if "flow rate" in c.lower()), None)
+    power_cols = [lookup[k] for k in lookup if "active power" in k]
+    if time_col is None or not power_cols:
+        return pd.DataFrame()
+
+    out = pd.DataFrame()
+    out["time_s"] = pd.to_numeric(frame[time_col], errors="coerce")
+    out["flow_l_min"] = pd.to_numeric(frame[flow_col], errors="coerce").fillna(0) if flow_col else 0
+    out["power_w"] = (
+        frame[power_cols]
+        .apply(pd.to_numeric, errors="coerce")
+        .fillna(0)
+        .sum(axis=1)
+    )
+    out = out.dropna(subset=["time_s"]).sort_values("time_s").reset_index(drop=True)
+    out = out[out["time_s"].diff().fillna(1) >= 0].copy()
+
+    _ENERGY_CSV_CACHE["path"] = str(csv_path)
+    _ENERGY_CSV_CACHE["mtime"] = mtime
+    _ENERGY_CSV_CACHE["data"] = out
+    return out
+
+
+def _integrate_energy_air(samples: pd.DataFrame) -> tuple[float, float]:
+    if samples.empty:
+        return 0.0, 0.0
+    tmp = samples.sort_values("time_s").copy()
+    dt = tmp["time_s"].shift(-1) - tmp["time_s"]
+    positive_dt = dt[dt > 0]
+    default_dt = float(positive_dt.median()) if not positive_dt.empty else 1.0
+    max_dt = max(default_dt * 10, 1.0)
+    dt = dt.fillna(default_dt).clip(lower=0, upper=max_dt)
+
+    energy_kwh = float((tmp["power_w"] * dt).sum() / 3_600_000)
+    air_l = float((tmp["flow_l_min"] * dt).sum() / 60)
+    return energy_kwh, air_l
+
+
+def _energy_from_csv(
+    produced_count: float,
+    since: date,
+    until: date,
+    points: int = 7,
+) -> Optional[dict]:
+    samples = _load_energy_csv()
+    if samples.empty:
+        return None
+
+    n_points = max(1, min(points, len(samples)))
+    total_energy_kwh, total_air_l = _integrate_energy_air(samples)
+    duration_s = max(float(samples["time_s"].max() - samples["time_s"].min()), 1.0)
+    duration_h = duration_s / 3600
+    duration_min = duration_s / 60
+
+    per_unit_denom = produced_count if produced_count > 0 else None
+    per_piece_energy = (total_energy_kwh / per_unit_denom) if per_unit_denom else None
+    per_piece_air = (total_air_l / per_unit_denom) if per_unit_denom else None
+
+    # If the computed per-piece values are too tiny to be readable, switch to a rate
+    # representation derived only from the energy CSV (still real measurements).
+    use_rate_mode = (
+        per_piece_energy is None
+        or per_piece_energy < 1e-3
+    )
+    if use_rate_mode:
+        energy_per_unit = total_energy_kwh / duration_h  # ~kW average
+        air_per_unit = total_air_l / duration_min  # L/min average
+    else:
+        energy_per_unit = per_piece_energy
+        air_per_unit = per_piece_air
+
+    total_days = max((until - since).days, 0)
+    labels = [since + timedelta(days=round(i * total_days / max(n_points - 1, 1))) for i in range(n_points)]
+    energy_evolution: list[dict] = []
+    combined: list[dict] = []
+
+    n_rows = len(samples)
+    for idx in range(n_points):
+        start_i = int(idx * n_rows / n_points)
+        end_i = int((idx + 1) * n_rows / n_points)
+        chunk = samples.iloc[start_i:end_i]
+        chunk_energy_kwh, chunk_air_l = _integrate_energy_air(chunk)
+        if use_rate_mode:
+            if len(chunk) > 1:
+                chunk_duration_s = max(float(chunk["time_s"].iloc[-1] - chunk["time_s"].iloc[0]), 1.0)
+            else:
+                chunk_duration_s = max(duration_s / n_points, 1.0)
+            chunk_energy = chunk_energy_kwh / (chunk_duration_s / 3600)  # ~kW average
+            chunk_air = chunk_air_l / (chunk_duration_s / 60)  # L/min average
+        else:
+            chunk_energy = (chunk_energy_kwh / per_unit_denom) if per_unit_denom else chunk_energy_kwh
+            chunk_air = (chunk_air_l / per_unit_denom) if per_unit_denom else chunk_air_l
+        label_date = labels[idx]
+        energy_evolution.append(
+            {
+                "date": _day_str(label_date),
+                "kwh": round(float(chunk_energy), 6),
+            }
+        )
+        combined.append(
+            {
+                "date": _day_str(label_date),
+                "kwh": round(float(chunk_energy), 6),
+                "air": round(float(chunk_air), 4),
+            }
+        )
+
+    return {
+        "energy_per_unit": energy_per_unit,
+        "air_per_unit": air_per_unit,
+        "energy_evolution": energy_evolution,
+        "combined": combined,
+    }
+
+
+def _is_global_energy_context(filters: Optional[dict]) -> bool:
+    filters = filters or {}
+    for key in ("machine", "product", "of", "error_type"):
+        if str(filters.get(key, "all")).strip() not in ("", "all"):
+            return False
+    return True
+
+
+def _energy_missing(results: dict[str, dict], details: dict) -> bool:
+    energy_value = results.get("energy_per_unit", {}).get("value")
+    air_value = results.get("air_per_unit", {}).get("value")
+    return (
+        (energy_value is None or float(energy_value) <= 0)
+        and (air_value is None or float(air_value) <= 0)
+    )
+
+
+def _apply_energy_csv_fallback(
+    results: dict[str, dict],
+    details: dict,
+    fse_summary: pd.DataFrame,
+    since: date,
+    until: date,
+    filters: Optional[dict],
+) -> None:
+    if not _energy_missing(results, details):
+        return
+
+    produced_ok = _num(fse_summary, "quantity_output_ok").sum()
+    produced_nok = _num(fse_summary, "quantity_output_nok").sum()
+    produced_total = float(produced_ok + produced_nok)
+    csv_energy = _energy_from_csv(
+        produced_count=produced_total,
+        since=since,
+        until=until,
+        points=7,
+    )
+    if not csv_energy:
+        return
+
+    results["energy_per_unit"] = _result("energy_per_unit", csv_energy["energy_per_unit"])
+    results["air_per_unit"] = _result("air_per_unit", csv_energy["air_per_unit"])
+    details.setdefault("energy", {})
+    details["energy"]["energy_evolution"] = csv_energy["energy_evolution"]
+    details["energy"]["combined"] = csv_energy["combined"]
+
+
 def _normalize_dates(df: pd.DataFrame, *cols: str) -> pd.DataFrame:
     out = df.copy()
     for col in cols:
@@ -212,10 +422,24 @@ def _result(key: str, value: Optional[float]) -> dict:
             ratio = value / target if target else None
         else:
             ratio = (target / value) if value else 0
+    rounded_value = None
+    if value is not None:
+        v = float(value)
+        av = abs(v)
+        if av < 0.001:
+            rounded_value = round(v, 8)
+        elif av < 0.01:
+            rounded_value = round(v, 6)
+        elif av < 1:
+            rounded_value = round(v, 5)
+        elif av < 100:
+            rounded_value = round(v, 4)
+        else:
+            rounded_value = round(v, 2)
     return {
         "key": key,
         "label": meta["label"],
-        "value": None if value is None else (round(float(value), 4)),
+        "value": rounded_value,
         "unit": meta["unit"],
         "type": meta["value_type"],
         "format": meta["format"],
@@ -707,9 +931,13 @@ def build_telephan_payload(detail_days: int = 7, filters: Optional[dict] = None)
     fss_summary = _slice_since(fss, "date", summary_since)
     fod_summary = _slice_since(fod, "end_date", summary_since)
 
+    results = _compute_summary(ms_summary, fse_summary, fqe_summary, fss_summary, fod_summary)
+    details = _compute_details(ms, fse, fqe, fss, fod)
+    _apply_energy_csv_fallback(results, details, fse_summary, summary_since, summary_until, filters)
+
     return {
-        "results": _compute_summary(ms_summary, fse_summary, fqe_summary, fss_summary, fod_summary),
-        "details": _compute_details(ms, fse, fqe, fss, fod),
+        "results": results,
+        "details": details,
         "filter_options": filter_options,
         "data_start_date": data_start.isoformat() if data_start else None,
         "anchor_date": anchor.isoformat(),

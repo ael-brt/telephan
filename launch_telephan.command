@@ -73,15 +73,22 @@ else
     [ -f '$ROOT_DIR/.env' ] && . '$ROOT_DIR/.env'
     set +a
     export USE_SQLITE_FALLBACK=\${USE_SQLITE_FALLBACK:-0}
-    export DB_HOST=\${DB_HOST:-127.0.0.1}
-    export DB_PORT=\${DB_PORT:-3306}
+    export DB_HOST=127.0.0.1
+    export DB_PORT=3306
+    export ENERGY_CSV_PATH='$ROOT_DIR/dataEnergy.csv'
     export FRONTEND_BASE_URL=\${FRONTEND_BASE_URL:-http://127.0.0.1:8080}
     . '.venv/bin/activate'
     python manage.py migrate
     python manage.py runserver 127.0.0.1:8000 --noreload
   " >>"$BACKEND_LOG" 2>&1 &
   echo $! > "$BACKEND_PID_FILE"
-  echo "  - Backend lance (PID $(cat "$BACKEND_PID_FILE"))"
+  sleep 2
+  if process_running "$BACKEND_PID_FILE"; then
+    echo "  - Backend lance (PID $(cat "$BACKEND_PID_FILE"))"
+  else
+    echo "  - Echec backend (voir log: $BACKEND_LOG)"
+    exit 1
+  fi
 fi
 
 echo "[5/5] Lancement frontend Vite..."
@@ -114,4 +121,3 @@ echo "Pour arreter: ./stop_telephan.command"
 if command -v open >/dev/null 2>&1; then
   open "http://127.0.0.1:8080" >/dev/null 2>&1 || true
 fi
-

@@ -23,9 +23,15 @@ export function formatKpiValue(
 ): string {
   if (!kpi || kpi.value == null) return "--";
 
-  const decimals =
-    options?.decimals ??
-    (Math.abs(kpi.value) >= 100 ? 0 : kpi.unit === "%" ? 1 : 2);
+  const inferredDecimals =
+    kpi.type === "integer" || kpi.type === "duration"
+      ? 0
+      : Math.abs(kpi.value) >= 100
+        ? 0
+        : kpi.unit === "%"
+          ? 1
+          : 2;
+  const decimals = options?.decimals ?? inferredDecimals;
   const unit = options?.unitOverride ?? kpi.unit;
   const formatted = new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: decimals,
@@ -59,8 +65,10 @@ export function compareToTargetText(kpi?: DashboardKpi | null): string {
 
   const better = kpi.better_when === "higher" ? delta > 0 : delta < 0;
   const abs = Math.abs(delta);
+  const decimals = kpi.type === "integer" || kpi.type === "duration" ? 0 : 2;
   const suffix = kpi.unit ? ` ${kpi.unit}` : "";
   return `${better ? "Meilleur" : "Écart"} vs objectif: ${new Intl.NumberFormat("fr-FR", {
-    maximumFractionDigits: 2,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   }).format(abs)}${suffix}`;
 }

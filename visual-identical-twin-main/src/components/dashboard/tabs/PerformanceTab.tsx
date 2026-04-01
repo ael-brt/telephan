@@ -13,9 +13,11 @@ export const PerformanceTab = () => {
 
   const trsPct = trs?.value ?? 0;
   const cycleTimeSeconds = cycleTime?.value ?? null;
+  const cycleTimeRounded = cycleTimeSeconds != null ? Math.round(cycleTimeSeconds) : null;
   const operationExecutionPct = operationExecutionRate?.value ?? 0;
   const trsTarget = trs?.target ?? null;
   const cycleTimeTarget = cycleTime?.target ?? null;
+  const cycleTimeTargetRounded = cycleTimeTarget != null ? Math.round(cycleTimeTarget) : null;
   const trsEvolutionData = data?.details.performance.trs_evolution ?? [];
   const cycleTimeEvolutionData = data?.details.performance.cycle_time_evolution ?? [];
 
@@ -61,14 +63,14 @@ export const PerformanceTab = () => {
             <span className="text-xs font-medium text-muted-foreground">Temps de cycle</span>
           </div>
           <p className="text-4xl font-bold text-foreground">
-            {cycleTimeSeconds != null ? cycleTimeSeconds.toFixed(1) : "--"}
+            {cycleTimeRounded != null ? cycleTimeRounded : "--"}
             <span className="text-lg font-normal text-muted-foreground">s</span>
           </p>
           <p className="text-sm text-muted-foreground mt-1">Temps de cycle moyen</p>
           <div className="mt-3 text-xs">
             <div className="flex justify-between text-muted-foreground">
               <span>Objectif</span>
-              <span className="text-success font-medium">{cycleTimeTarget != null ? `${cycleTimeTarget.toFixed(1)}s` : "--"}</span>
+              <span className="text-success font-medium">{cycleTimeTargetRounded != null ? `${cycleTimeTargetRounded}s` : "--"}</span>
             </div>
           </div>
         </div>
@@ -180,7 +182,7 @@ export const PerformanceTab = () => {
             <div className="h-36 flex items-center justify-center text-xs text-muted-foreground">Aucune donnée disponible</div>
           )}
           <div className="flex items-center justify-between text-xs mt-3">
-            <span className="text-muted-foreground">Moyenne: <span className="font-medium text-foreground">{cycleTimeSeconds != null ? `${cycleTimeSeconds.toFixed(1)}s` : "--"}</span></span>
+            <span className="text-muted-foreground">Moyenne: <span className="font-medium text-foreground">{cycleTimeRounded != null ? `${cycleTimeRounded}s` : "--"}</span></span>
             <span className="text-success font-medium">{compareToTargetText(cycleTime)}</span>
           </div>
         </div>

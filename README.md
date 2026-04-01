@@ -5,6 +5,7 @@ Projet de dashboard industriel (frontend + backend) realise dans le cadre de la 
 - `visual-identical-twin-main/` : frontend React/Vite
 - `qlio_dash/` : backend Django + API + login
 - `telephan.sql` : schema de la base KPI (`mes_kpi`)
+- `DOCUMENTATION_TECHNIQUE_ET_ANALYTIQUE.md` : doc complete (Windows 10 + venv, fonctionnalites, analyse KPI)
 
 ## Prerequis (simple)
 
@@ -41,6 +42,27 @@ Pour arreter:
 
 ```bash
 ./stop_telephan.command
+```
+
+## Lancement rapide (Windows)
+
+Le plus simple:
+
+1. Installer `Docker Desktop`, `Python 3`, `Node.js`
+2. Ouvrir Docker Desktop (le laisser demarre)
+3. Double-cliquer sur `launch_telephan_windows.bat`
+
+Autre possibilite (PowerShell):
+
+```powershell
+cd C:\chemin\vers\telephan
+.\launch_telephan_windows.bat
+```
+
+Pour arreter:
+
+```powershell
+.\stop_telephan_windows.bat
 ```
 
 ## URLs utiles
@@ -101,3 +123,5 @@ docker compose up -d mariadb phpmyadmin
 - `.env.example`
 - `telephan.sql`
 - `qlio_dash/dashboard/sql/populate_mes_kpi_from_mes4.sql`
+- `launch_telephan.command` / `stop_telephan.command` (macOS)
+- `launch_telephan_windows.bat` / `stop_telephan_windows.bat` (Windows)
